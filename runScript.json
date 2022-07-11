@@ -5,7 +5,15 @@
     "_generator": {
       "name": "bicep",
       "version": "0.8.9.13224",
-      "templateHash": "12854040621285142496"
+      "templateHash": "3556446881218068612"
+    }
+  },
+  "parameters": {
+    "managedIdentityForDeployment": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource Id of the managed Identity to use for deployment"
+      }
     }
   },
   "resources": [
@@ -18,7 +26,7 @@
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "/subscriptions/53cd450b-b108-4e6e-b048-f63c1dcc8c8f/resourcegroups/vinagesh-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/vinagesh-test-msi": {}
+          "[format('{0}', parameters('managedIdentityForDeployment'))]": {}
         }
       },
       "properties": {
