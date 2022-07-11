@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.8.9.13224",
+      "templateHash": "12854040621285142496"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "enablesecurity",
+      "kind": "AzureCLI",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "/subscriptions/53cd450b-b108-4e6e-b048-f63c1dcc8c8f/resourcegroups/vinagesh-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/vinagesh-test-msi": {}
+        }
+      },
+      "properties": {
+        "azCliVersion": "2.9.1",
+        "retentionInterval": "P1D",
+        "primaryScriptUri": "https://raw.githubusercontent.com/vinagesh/iotdogfood/main/script.ps1"
+      }
+    }
+  ]
+}
