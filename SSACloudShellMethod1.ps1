@@ -28,7 +28,16 @@ Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupN
 };Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"; break }
 
 # Update Configuration to Enable
-1 { For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
+1 { 
+# Update Policies
+Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights' | Out-Null
+$PolicyDescription = "Policy to deploy resources required to enable the Defender for Serverless product"
+$PolicyName = "DefenderForServerless"
+$PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription | Out-Null
+$PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope "/subscriptionS/$($selected_subscription_id)" -PolicyDefinition $PolicyDefinition -IdentityType SystemAssigned -Location westus2 | Out-Null
+Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance | Out-Null
+
+For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
 Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting @{"AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED" = "1"} | Out-Null
 };Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"; break }
 

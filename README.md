@@ -7,12 +7,12 @@
 
 1) Open Cloudshell and Run the command to dowload script to cloudshell
 ```
-curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/SSACloudShellMethod1.ps1"
+curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/policyForScript/SSACloudShellMethod1.ps1" -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/policyForScript/Policy.json"
 ```
 
 2) Run the script by using the command on cloudshell
 ```
-./CloudShellMethod2.ps1
+./SSACloudShellMethod1.ps1
 ```
 
 3) Copy the SubscriptionId for the subscription you want to change and insert it when prompted by the script
