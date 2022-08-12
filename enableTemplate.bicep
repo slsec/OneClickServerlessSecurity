@@ -33,6 +33,6 @@ resource enablesecurity 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
         secureValue: subscription().tenantId
       }
     ]
-    primaryScriptUri: 'https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/OneClickEnable/SSAOneClickEnableMethod2.ps1'  
+    primaryScriptUri: 'https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/SSAOneClickEnableMethod2.ps1'  
   }
 }

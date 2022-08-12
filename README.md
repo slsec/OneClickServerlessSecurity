@@ -7,7 +7,7 @@
 
 1) Open Cloudshell and Run the command to dowload script to cloudshell
 ```
-curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/OneClickEnable/SSACloudShellMethod1.ps1"
+curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/SSACloudShellMethod1.ps1"
 ```
 
 2) Run the script by using the command on cloudshell
@@ -37,9 +37,9 @@ It will be of the format - /subscriptions/{subid}/resourcegroups/{res-group-id}/
 
 1) User to click enable to enable ServerlessSecurity / User to click disable to disable ServerlessSecurity
 
->[![EnableServerlessSecurity](https://img.shields.io/static/v1?label=enable&message=ServerlessSecurity&color=green)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fvikenparikh%2FOneClickServerlessSecurity%2FOneClickEnable%2FenableTemplate.json)
+>[![EnableServerlessSecurity](https://img.shields.io/static/v1?label=enable&message=ServerlessSecurity&color=green)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fvikenparikh%2FOneClickServerlessSecurity%2Fmain%2FenableTemplate.json)
 
->[![DisableServerlessSecurity](https://img.shields.io/static/v1?label=disable&message=ServerlessSecurity&color=red)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fvikenparikh%2FOneClickServerlessSecurity%2FOneClickEnable%2FdisableTemplate.json)
+>[![DisableServerlessSecurity](https://img.shields.io/static/v1?label=disable&message=ServerlessSecurity&color=red)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fvikenparikh%2FOneClickServerlessSecurity%2Fmain%2FdisableTemplate.json)
 
 2) Select the subscription you would like to enable/disable ServerlessSecurity
 
