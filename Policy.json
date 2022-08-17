@@ -79,7 +79,7 @@
               "dcrName": "[concat(variables('prefix'),'dcr-', parameters('location'))]",
               "laName": "[concat(variables('prefix'),'la-', parameters('location'))]",
               "uaName": "[concat(variables('prefix'), 'identity')]",
-              "streamName": "Microsoft-ServerlessSecurityPluginData"
+              "streamName": "Microsoft-AppServiceServerlessSecurityPluginData"
             },
             "resources": [
               {
