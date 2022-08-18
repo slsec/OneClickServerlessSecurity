@@ -16,6 +16,10 @@ Set-AzContext -Subscription $selected_subscription_id
 # remove AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to disable the agent.
 $toggle_option =  Read-Host -Prompt "`n Enter 0 to Disable, 1 to Enable, any other input will do nothing and exit.`n Note: enablement/disablement of the defender will result in function restart...."
 
+if($toggle_option == 1){
+    $ss_config_value = Read-Host -Prompt "`n Enter secure key provided"
+}
+
 Write-Host "Please wait while deployment is complete..."
 # Get all functions within the subscription
 $function_app_list = Get-AzFunctionApp -SubscriptionId $selected_subscription_id | Out-Null
@@ -25,11 +29,15 @@ switch ($toggle_option) {
 # Remove Configuration Switch to Disable
 0 { For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
 Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED" | Out-Null
+Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "SERVERLESS_SECURITY_OFFLOAD_TO_EH" | Out-Null
+Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "SERVERLESS_SECURITY_CONFIG" | Out-Null
 };Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"; break }
 
 # Update Configuration to Enable
 1 { For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
 Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting @{"AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED" = "1"} | Out-Null
+Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting @{"SERVERLESS_SECURITY_OFFLOAD_TO_EH" = "True"} | Out-Null
+Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting @{"SERVERLESS_SECURITY_CONFIG" = $ss_config_value} | Out-Null
 };Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"; break }
 
 # Defaults to break the switch, without any changes made

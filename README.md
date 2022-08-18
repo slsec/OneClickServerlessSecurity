@@ -12,12 +12,14 @@ curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecuri
 
 2) Run the script by using the command on cloudshell
 ```
-./CloudShellMethod2.ps1
+./CloudShellMethod1.ps1
 ```
 
 3) Copy the SubscriptionId for the subscription you want to change and insert it when prompted by the script
 
-4) Then enter 0 to Disable, 1 to Enable the ServerlessSecurity Agent and wait till the deployment completes
+4) Then enter 0 to Disable, 1 to Enable the ServerlessSecurity Agent 
+
+5) Only For Enabling  the ServerlessSecurity Agent, enter the provided secure key and wait till the deployment completes.
 
 5) Check for Success - Check if the script run was successful without any errors
 
