@@ -30,9 +30,14 @@ switch ($toggle_option) {
         For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
             Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED" | Out-Null
         };
-        Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT for $($function_app_list.Count) Functions with Subscription ID is: $selected_subscription_id"; break 
+        Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT for $($function_app_list.Count) Functions with Subscription ID is: $selected_subscription_id";
         Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
+        Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
+
+        Write-Host "Cleaning up resources. This may take a while..."
         Remove-AzPolicyDefinition -Name $PolicyName -Force
+        Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
+        break
     }
 
     # Update Configuration to Enable

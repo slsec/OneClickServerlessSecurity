@@ -33,6 +33,10 @@ switch ($toggle_option) {
         Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"
         Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
         Remove-AzPolicyDefinition -Name $PolicyName -Force
+
+        Write-Host "Cleaning up resources. This may take a while..."
+        Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
+        Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
         break
     }
 
