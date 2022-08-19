@@ -1,9 +1,9 @@
 # Enable - Disable serverless security
 *This Script allows a customer to enable or remove ServerlessSecurity Agent*
 
-***Please note : The function apps will restart during enabling or disabling the agent***
+***Please note : The function apps will Restart during enabling or disabling the agent. ***
+***In case of any errors/interruptions, the script can be retried, and function apps could restart in each attempt. Make sure to enter the correct subscription id and secure key***
 
-# Method 1
 
 1) Open Cloudshell and Run the command to dowload script to cloudshell
 ```
@@ -27,9 +27,9 @@ curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecuri
 ![image](https://user-images.githubusercontent.com/20373954/185519519-f8ef84a5-c076-4f9b-8697-31ade0965b1f.png)
 ![image](https://user-images.githubusercontent.com/20373954/185519700-f73e0ffb-cb19-4259-9944-348fac19ddc5.png)
 
-5) Only For Enabling  the ServerlessSecurity Agent, enter the provided secure key and wait till the deployment completes.
+5) (Only For Enabling the ServerlessSecurity Agent) Enter the provided secure key
 
-6) Check for Success - Check if the script run was successful without any errors
+6) Wait till the deployment completes and check if the script run was successful.
 
 ![image](https://user-images.githubusercontent.com/20373954/185520191-ac574c27-3d32-4ba3-89f4-9bba5b6c892d.png)
 ![image](https://user-images.githubusercontent.com/20373954/185520510-2b8768d3-6f39-4a40-9e01-cd125f88a11e.png)
