@@ -52,8 +52,8 @@ switch ($toggle_option) {
         $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_CONFIG", $ss_config_value)
         Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights' | Out-Null
         $PolicyDescription = "Policy to deploy resources required to enable the Defender for Serverless product"
-        $PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription | Out-Null
-        $PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope $PolicyScope -PolicyDefinition $PolicyDefinition -IdentityType SystemAssigned -Location westus2 | Out-Null
+        $PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription
+        $PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope $PolicyScope -PolicyDefinition $PolicyDefinition -IdentityType SystemAssigned -Location westus2
 
         For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
             Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
