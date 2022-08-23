@@ -58,10 +58,10 @@ the user can see ServerlessSecurity enabled / disabled.
 
 Running either method of the onboarding script will have the following effects on your resources:
 1) Register the resource provider 'Microsoft.PolicyInsights'
-2) Add the app setting 'AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED' to each Azure Function in your subscription
+2) Add the application setting 'AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED' to each Azure Function in your subscription
 3) Assign a custom policy and associated remediation task, described below.
 
-Running the disable command in this repository will remove app setting from all Azure Functions, remediation task, policy assignment and policy definition.
+Running the disable command in this repository will remove application setting from all Azure Functions, remediation task, policy assignment and policy definition.
 
 # Policy Overview
 The Azure Policy Definition in this repository will be uploaded to your subscription and assigned to the subscription scope. Additionally, a remediation task will be created for all current resources. This policy takes several actions to onboard your Functions to the Azure Functions Security Agent.
