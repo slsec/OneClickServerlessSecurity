@@ -63,7 +63,7 @@ Running either method of the onboarding script will have the following effects o
 
 Running the disable command in this repository will remove app setting from all Azure Functions, remediation task, policy assignment and policy definition.
 
-# Policy overview
+# Policy Overview
 The Azure Policy Definition in this repository will be uploaded to your subscription and assigned to the subscription scope. Additionally, a remediation task will be created for all current resources. This policy takes several actions to onboard your Functions to the Azure Functions Security Agent.
 Firstly, it creates the resource group 'mdc-slsec-rg' to house resources related to the functioning of the agent. These resources include:
 1) A Log Analytics Workspace for each region you have a FunctionApp deployed in. This LA Workspace contains events to process from your Function, as well as debug logs
