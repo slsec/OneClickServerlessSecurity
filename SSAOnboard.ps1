@@ -19,7 +19,7 @@ $PolicyScope = "/subscriptions/$($selected_subscription_id)"
 # remove AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to disable the agent.
 $toggle_option = Read-Host -Prompt "`n Enter 0 to Disable, 1 to Enable, any other input will do nothing and exit.`n Note: enablement/disablement of the defender will result in function restart...."
 
-if($toggle_option -eq 1){
+if ($toggle_option -eq 1) {
     $ss_config_value = Read-Host -Prompt "`n Enter secure key provided"
 }
 
@@ -46,20 +46,34 @@ switch ($toggle_option) {
 
     # Update Configuration to Enable
     1 { 
+        Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights' | Out-Null # Needed to create policies
+        $PolicyDescription = "Policy to deploy resources required to enable the Defender for Serverless product"
+        $PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription
+        # The policy assignment needs to be created early on so its identity has time to propagate 
+        $PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope $PolicyScope -PolicyDefinition $PolicyDefinition -Location westus2 -AssignIdentity
+        
         $UpdateFunctionAppSetting = @{}
         $UpdateFunctionAppSetting.Add("AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "1")
         $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_OFFLOAD_TO_EH", "True")
         $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_CONFIG", $ss_config_value)
-        Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights' | Out-Null
-        $PolicyDescription = "Policy to deploy resources required to enable the Defender for Serverless product"
-        $PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription
-        $PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope $PolicyScope -PolicyDefinition $PolicyDefinition -IdentityType SystemAssigned -Location westus2
 
         For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
             Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
         };
-        Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance | Out-Null
-        Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"; break 
+
+        # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
+        $RoleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds 
+        if ($RoleDefinitionIds.Count -gt 0) {
+            $RoleDefinitionIds | ForEach-Object {
+                $RoleDefId = $_.Split("/") | Select-Object -Last 1
+                New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId
+                -RoleDefinitionId $RoleDefId
+            }
+        }
+        New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
+
+        Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
+        Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID: $selected_subscription_id"; break 
     }
 
     # Defaults to break the switch, without any changes made
