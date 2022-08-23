@@ -53,3 +53,22 @@ It will be of the format - /subscriptions/{subid}/resourcegroups/{res-group-id}/
 the user can see ServerlessSecurity enabled / disabled.
 
 7) Check for Success - Check if the deployment was successful 
+
+# Effects on Resources and Subscriptions
+
+Running either method of the onboarding script will have the following effects on your resources:
+1) Register the resource provider 'Microsoft.PolicyInsights'
+2) Add the app setting 'AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED' to each Azure Function in your subscription
+3) Assign a custom policy and associated remediation task, described below.
+
+Running the disable command in this repository will remove app setting from all Azure Functions, remediation task, policy assignment and policy definition.
+
+# Policy overview
+The Azure Policy Definition in this repository will be uploaded to your subscription and assigned to the subscription scope. Additionally, a remediation task will be created for all current resources. This policy takes several actions to onboard your Functions to the Azure Functions Security Agent.
+Firstly, it creates the resource group 'mdc-slsec-rg' to house resources related to the functioning of the agent. These resources include:
+1) A Log Analytics Workspace for each region you have a FunctionApp deployed in. This LA Workspace contains events to process from your Function, as well as debug logs
+2) A Data Collection Endpoint per region, which defines where these logs go
+3) A Data Collection Rule which defines log transformations
+4) A User Assigned Identity with permissions to write to the LA Workspace. This identity is added to each of your Function Apps
+5) A resource lock on the Identity to prevent accidental deletion.
+Please do not modify or delete any of the resources in the mdc-slsec-rg, as this will stop the security agent from working. If you wish to disable the agent or delete the resources, please run the offboarding command described above.
