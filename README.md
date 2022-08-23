@@ -6,7 +6,7 @@
 
 1) Open Cloud Shell and run the following command:
 ```
-curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/SSAOnboard.ps1;curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/Policy.json"
+curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/SSAOnboard.ps1";curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecurity/main/Policy.json"
 ```
 ![image](https://user-images.githubusercontent.com/20373954/185518206-65a87986-b177-41fe-9501-8cc61f41b8d0.png)
 ![image](https://user-images.githubusercontent.com/20373954/185518266-8ba216a2-a02b-455c-a7fb-c12d43f3e88d.png)
