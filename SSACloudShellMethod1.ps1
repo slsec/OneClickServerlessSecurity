@@ -19,6 +19,10 @@ $PolicyScope = "/subscriptions/$($selected_subscription_id)"
 # remove AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to disable the agent.
 $toggle_option = Read-Host -Prompt "`n Enter 0 to Disable, 1 to Enable, any other input will do nothing and exit.`n Note: enablement/disablement of the defender will result in function restart...."
 
+if($toggle_option -eq 1){
+    $ss_config_value = Read-Host -Prompt "`n Enter secure key provided"
+}
+
 Write-Host "Please wait while deployment is complete..."
 # Get all functions within the subscription
 $function_app_list = Get-AzFunctionApp -SubscriptionId $selected_subscription_id
