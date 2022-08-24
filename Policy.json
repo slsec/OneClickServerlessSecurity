@@ -31,8 +31,7 @@
         ]
       },
       "roleDefinitionIds": [
-        "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
-        "/providers/Microsoft.Authorization/roleDefinitions/a3fd983e-8bf0-4cd0-b63c-1670e6d5d142"
+        "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
       ],
       "deployment": {
         "location": "westus",
