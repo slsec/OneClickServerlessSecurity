@@ -74,8 +74,6 @@ switch ($toggle_option) {
                 }
             }
         }
-        New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
-
         Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
         Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID: $selected_subscription_id"; break 
     }
