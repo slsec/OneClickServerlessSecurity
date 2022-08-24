@@ -66,8 +66,7 @@ switch ($toggle_option) {
         if ($RoleDefinitionIds.Count -gt 0) {
             $RoleDefinitionIds | ForEach-Object {
                 $RoleDefId = $_.Split("/") | Select-Object -Last 1
-                New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId
-                -RoleDefinitionId $RoleDefId
+                New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId
             }
         }
         New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $roleDefId
