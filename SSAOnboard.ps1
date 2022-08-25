@@ -4,10 +4,10 @@ $WarningPrefBackup = $WarningPreference
 $WarningPreference = 'SilentlyContinue'
 
 # Describe to the User what that Script does
-Write-Host "This is a Script to enable or disable ServerlessSecurity Plugin for Functions within a Subscription"
+Write-Host "This is a Script to enable or disable  Defender for Serverless Application (Azure Functions) within a Subscription"
 
 # Prompt Customer to enter the subscription_id and set it to a context
-$selected_subscription_id = Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the ServerlessSecurity agent for"
+$selected_subscription_id = Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the Defender for Serverless Application for"
 Write-Host "Selected Subscription ID is: $selected_subscription_id"
 Set-AzContext -Subscription $selected_subscription_id
 
