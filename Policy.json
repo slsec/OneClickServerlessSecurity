@@ -1,0 +1,428 @@
+{
+  "if": {
+    "allOf": [
+      {
+        "field": "type",
+        "equals": "Microsoft.Web/sites"
+      },
+      {
+        "field": "kind",
+        "contains": "functionapp"
+      }
+    ]
+  },
+  "then": {
+    "effect": "deployIfNotExists",
+    "details": {
+      "type": "Microsoft.Web/sites",
+      "name": "[field('name')]",
+      "deploymentScope": "subscription",
+      "evaluationDelay": "AfterProvisioning",
+      "existenceCondition": {
+        "allOf": [
+          {
+            "field": "identity.type",
+            "contains": "UserAssigned"
+          },
+          {
+            "field": "identity.userAssignedIdentities",
+            "containsKey": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/mdc-slsec-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mdc-slsec-identity')]"
+          }
+        ]
+      },
+      "roleDefinitionIds": [
+        "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+      ],
+      "deployment": {
+        "location": "westus",
+        "properties": {
+          "mode": "incremental",
+          "parameters": {
+            "resourceGroup": {
+              "value": "[resourceGroup().name]"
+            },
+            "location": {
+              "value": "[field('location')]"
+            },
+            "resourceName": {
+              "value": "[field('name')]"
+            }
+          },
+          "template": {
+            "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+            "contentVersion": "1.0.0.1",
+            "parameters": {
+              "resourceGroup": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "resourceName": {
+                "type": "string"
+              }
+            },
+            "variables": {
+              "subscriptionId": "[subscription().subscriptionId]",
+              "slsecRGName": "mdc-slsec-rg",
+              "defaultLocation": "westus",
+              "resourceLocation": "[parameters('location')]",
+              "resourceId": "[concat('/subscriptions/', variables('subscriptionId'), '/resourceGroups/', parameters('resourceGroup'), '/providers/Microsoft.Web/sites/', parameters('resourceName'))]",
+              "uaId": "[concat('/subscriptions/', variables('subscriptionId'), '/resourceGroups/', variables('slsecRGName'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('uaName'))]",
+              "deployUAName": "[concat('deployUAName-', uniqueString(deployment().name))]",
+              "deployGetResourceProperties": "[concat('deployGetResourceProperties-', uniqueString(deployment().name))]",
+              "deployAddUAName": "[concat('deployAddUAName-', uniqueString(deployment().name))]",
+              "deployDCRName": "[concat('deployDCRName-', uniqueString(deployment().name))]",
+              "prefix": "mdc-slsec-",
+              "dceName": "[concat(variables('prefix'),'dce-', parameters('location'))]",
+              "dcrName": "[concat(variables('prefix'),'dcr-', parameters('location'))]",
+              "laName": "[concat(variables('prefix'),'la-', parameters('location'))]",
+              "uaName": "[concat(variables('prefix'), 'identity')]",
+              "streamName": "Microsoft-AppServiceServerlessSecurityPluginData"
+            },
+            "resources": [
+              {
+                "type": "Microsoft.Resources/resourceGroups",
+                "apiVersion": "2020-06-01",
+                "name": "[variables('slsecRGName')]",
+                "location": "[variables('defaultLocation')]"
+              },
+              {
+                "type": "Microsoft.Resources/deployments",
+                "apiVersion": "2020-06-01",
+                "name": "[variables('deployUAName')]",
+                "resourceGroup": "[variables('slsecRGName')]",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Resources/resourceGroups', variables('slsecRGName'))]"
+                ],
+                "properties": {
+                  "mode": "Incremental",
+                  "expressionEvaluationOptions": {
+                    "scope": "inner"
+                  },
+                  "parameters": {
+                    "uaName": {
+                      "value": "[variables('uaName')]"
+                    },
+                    "defaultlocation": {
+                      "value": "[variables('defaultLocation')]"
+                    },
+                    "resourceLocation": {
+                      "value": "[variables('resourceLocation')]"
+                    },
+                    "laName": {
+                      "value": "[variables('laName')]"
+                    },
+                    "dceName": {
+                      "value": "[variables('dceName')]"
+                    },
+                    "rg": {
+                      "value": "[variables('slsecRGName')]"
+                    },
+                    "streamName": {
+                      "value": "[variables('streamName')]"
+                    }
+                  },
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "uaName": {
+                        "type": "string"
+                      },
+                      "defaultlocation": {
+                        "type": "string"
+                      },
+                      "resourceLocation": {
+                        "type": "string"
+                      },
+                      "dceName": {
+                        "type": "string"
+                      },
+                      "rg": {
+                        "type": "string"
+                      },
+                      "laName": {
+                        "type": "string"
+                      },
+                      "streamName": {
+                        "type": "string"
+                      }
+                    },
+                    "variables": {
+                      "MonitoringMetricsPublisherRoleID": "/subscriptions/3e80626f-af91-4f0a-98ea-26ec24654d8e/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb",
+                      "MonitoringReaderRoleID": "/subscriptions/3e80626f-af91-4f0a-98ea-26ec24654d8e/providers/Microsoft.Authorization/roleDefinitions/43d0d8ad-25c7-4714-9337-8ba259a9fe05"
+                    },
+                    "resources": [
+                      {
+                        "type": "Microsoft.OperationalInsights/workspaces",
+                        "name": "[parameters('laName')]",
+                        "apiVersion": "2020-08-01",
+                        "location": "[parameters('resourceLocation')]",
+                        "properties": {
+                          "sku": {
+                            "name": "PerGB2018"
+                          },
+                          "retentionInDays": "30"
+                        }
+                      },
+                      {
+                        "apiVersion": "2021-04-01",
+                        "type": "Microsoft.Insights/dataCollectionEndpoints",
+                        "name": "[parameters('dceName')]",
+                        "location": "[parameters('resourceLocation')]",
+                        "dependsOn": [
+                          "[parameters('laName')]"
+                        ],
+                        "kind": "Windows",
+                        "properties": {
+                          "configurationAccess": {},
+                          "description": "DCE for SLSEC agent communication",
+                          "immutableId": "thisIsTheImmutableID",
+                          "logsIngestion": {},
+                          "networkAcls": {
+                            "publicNetworkAccess": "Enabled"
+                          }
+                        }
+                      },
+                      {
+                        "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+                        "name": "[parameters('uaName')]",
+                        "apiVersion": "2018-11-30",
+                        "location": "[parameters('defaultLocation')]"
+                      },
+                      {
+                        "type": "Microsoft.ManagedIdentity/userAssignedIdentities/providers/locks",
+                        "apiVersion": "2016-09-01",
+                        "name": "[concat(parameters('uaName'), '/Microsoft.Authorization/', 'CanNotDeleteLock-', parameters('uaName'))]",
+                        "dependsOn": [
+                          "[parameters('uaName')]"
+                        ],
+                        "properties": {
+                          "level": "CanNotDelete",
+                          "notes": "Please do not delete this User Assigned Identity in the mdc-slsec-rg resource group as MDC Serverless Security depends on this."
+                        }
+                      },
+                      {
+                        "type": "Microsoft.Authorization/roleAssignments",
+                        "apiVersion": "2020-08-01-preview",
+                        "name": "[guid(concat(parameters('rg'), '0'))]",
+                        "dependsOn": [
+                          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('uaName'))]"
+                        ],
+                        "properties": {
+                          "roleDefinitionId": "[variables('MonitoringMetricsPublisherRoleID')]",
+                          "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('uaName')), '2018-11-30').principalId]",
+                          "principalType": "ServicePrincipal"
+                        }
+                      },
+                      {
+                        "type": "Microsoft.Authorization/roleAssignments",
+                        "apiVersion": "2020-08-01-preview",
+                        "name": "[guid(concat(parameters('rg'), '1'))]",
+                        "dependsOn": [
+                          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('uaName'))]"
+                        ],
+                        "properties": {
+                          "roleDefinitionId": "[variables('MonitoringReaderRoleID')]",
+                          "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('uaName')), '2018-11-30').principalId]",
+                          "principalType": "ServicePrincipal"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "Microsoft.Resources/deployments",
+                "apiVersion": "2020-06-01",
+                "name": "[variables('deployGetResourceProperties')]",
+                "location": "eastus",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Resources/resourceGroups', variables('slsecRGName'))]",
+                  "[variables('deployUAName')]"
+                ],
+                "properties": {
+                  "mode": "Incremental",
+                  "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [],
+                    "outputs": {
+                      "resource": {
+                        "type": "object",
+                        "value": "[reference(variables('resourceId'), '2020-06-01', 'Full')]"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "Microsoft.Resources/deployments",
+                "apiVersion": "2020-06-01",
+                "name": "[variables('deployDCRName')]",
+                "resourceGroup": "[variables('slsecRGName')]",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Resources/resourceGroups', variables('slsecRGName'))]",
+                  "[variables('deployUAName')]",
+                  "[variables('deployGetResourceProperties')]"
+                ],
+                "properties": {
+                  "mode": "Incremental",
+                  "expressionEvaluationOptions": {
+                    "scope": "inner"
+                  },
+                  "parameters": {
+                    "resourceLocation": {
+                      "value": "[variables('resourceLocation')]"
+                    },
+                    "laName": {
+                      "value": "[variables('laName')]"
+                    },
+                    "dceName": {
+                      "value": "[variables('dceName')]"
+                    },
+                    "dcrName": {
+                      "value": "[variables('dcrName')]"
+                    },
+                    "streamName": {
+                      "value": "[variables('streamName')]"
+                    }
+                  },
+                  "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "resourceLocation": {
+                        "type": "string"
+                      },
+                      "dcrName": {
+                        "type": "string"
+                      },
+                      "dceName": {
+                        "type": "string"
+                      },
+                      "laName": {
+                        "type": "string"
+                      },
+                      "streamName": {
+                        "type": "string"
+                      }
+                    },
+                    "resources": [
+                      {
+                        "type": "Microsoft.Insights/dataCollectionRules",
+                        "apiVersion": "2021-09-01-preview",
+                        "name": "[parameters('dcrName')]",
+                        "location": "[parameters('resourceLocation')]",
+                        "properties": {
+                          "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints',parameters('dceName'))]",
+                          "dataFlows": [
+                            {
+                              "destinations": [
+                                "[parameters('laName')]"
+                              ],
+                              "outputStream": "[parameters('streamName')]",
+                              "streams": [
+                                "[parameters('streamName')]"
+                              ]
+                            }
+                          ],
+                          "dataSources": {},
+                          "description": "Data collection rule for slsec agent communication",
+                          "destinations": {
+                            "logAnalytics": [
+                              {
+                                "name": "[parameters('laName')]",
+                                "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces/', parameters('laName'))]",
+                                "workspaceId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces/', parameters('laName')), '2020-08-01').customerId]"
+                              }
+                            ]
+                          },
+                          "streamDeclarations": {}
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "Microsoft.Resources/deployments",
+                "apiVersion": "2020-06-01",
+                "name": "[concat(variables('deployAddUAName'))]",
+                "resourceGroup": "[parameters('resourceGroup')]",
+                "dependsOn": [
+                  "[resourceId('Microsoft.Resources/resourceGroups', variables('slsecRGName'))]",
+                  "[variables('deployUAName')]",
+                  "[variables('deployGetResourceProperties')]"
+                ],
+                "properties": {
+                  "mode": "Incremental",
+                  "expressionEvaluationOptions": {
+                    "scope": "inner"
+                  },
+                  "parameters": {
+                    "resourceName": {
+                      "value": "[parameters('resourceName')]"
+                    },
+                    "resourceLocation": {
+                      "value": "[variables('resourceLocation')]"
+                    },
+                    "uaId": {
+                      "value": "[variables('uaId')]"
+                    },
+                    "identityType": {
+                      "value": "[if(contains(reference(variables('deployGetResourceProperties')).outputs.resource.value, 'identity'), reference(variables('deployGetResourceProperties')).outputs.resource.value.identity.type, '')]"
+                    },
+                    "identityUserAssignedIdentities": {
+                      "value": "[if(and(contains(reference(variables('deployGetResourceProperties')).outputs.resource.value, 'identity'), contains(reference(variables('deployGetResourceProperties')).outputs.resource.value.identity, 'userAssignedIdentities')), reference(variables('deployGetResourceProperties')).outputs.resource.value.identity.userAssignedIdentities, createObject())]"
+                    }
+                  },
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "resourceName": {
+                        "type": "string"
+                      },
+                      "resourceLocation": {
+                        "type": "string"
+                      },
+                      "uaId": {
+                        "type": "string"
+                      },
+                      "identityType": {
+                        "type": "string"
+                      },
+                      "identityUserAssignedIdentities": {
+                        "type": "object"
+                      }
+                    },
+                    "variables": {
+                      "identityTypeValue": "[if(contains(parameters('identityType'), 'SystemAssigned'), 'SystemAssigned,UserAssigned', 'UserAssigned')]",
+                      "identityUserAssignedIdentitiesValue": "[union(parameters('identityUserAssignedIdentities'), createObject(parameters('uaId'), createObject()))]"
+                    },
+                    "resources": [
+                      {
+                        "apiVersion": "2021-01-01",
+                        "type": "Microsoft.Web/sites",
+                        "name": "[parameters('resourceName')]",
+                        "location": "[parameters('resourceLocation')]",
+                        "identity": {
+                          "type": "[variables('identityTypeValue')]",
+                          "userAssignedIdentities": "[variables('identityUserAssignedIdentitiesValue')]"
+                        },
+                        "properties": {
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
