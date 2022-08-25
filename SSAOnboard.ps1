@@ -8,6 +8,7 @@ Write-Host "This is a Script to enable or disable Defender for Serverless Applic
 
 # Prompt Customer to enter the subscription_id and set it to a context
 $selected_subscription_id = Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the Defender for Serverless Application for"
+
 Set-AzContext -Subscription $selected_subscription_id
 
 $PolicyName = "DefenderForServerless"
