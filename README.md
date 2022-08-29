@@ -17,18 +17,18 @@ curl -LO "https://raw.githubusercontent.com/vikenparikh/OneClickServerlessSecuri
 ```
 ![image](https://user-images.githubusercontent.com/20373954/185518120-550d6f20-ad4a-43ee-b3c2-81050fde5c01.png)
 
-3) Copy your SubscriptionId for the subscription you want to change and insert it when prompted.
+3) Copy your SubscriptionId for the subscription you want to change and insert it when prompted by the script.
 
 ![image](https://user-images.githubusercontent.com/20373954/185519051-159fb921-71bb-4d1d-a18f-b770785e5cab.png)
 
-4) Enter 0 to Disable or 1 to Enable the Serverless Security Agent.
+4) Enter 0 to Disable, 1 to Enable the Defender for Serverless Security.
 
 ![image](https://user-images.githubusercontent.com/20373954/185519519-f8ef84a5-c076-4f9b-8697-31ade0965b1f.png)
 ![image](https://user-images.githubusercontent.com/20373954/185519700-f73e0ffb-cb19-4259-9944-348fac19ddc5.png)
 
-5) (Only For Enabling the ServerlessSecurity Agent) Enter the provided secure key
+5) (Only For Enabling the Defender for Serverless Security) Enter the provided secure key
 
-6) Wait until the deployment completes and check if the script was successful.
+6) Wait until the deployment completes successfully.
 
 ![image](https://user-images.githubusercontent.com/20373954/185520191-ac574c27-3d32-4ba3-89f4-9bba5b6c892d.png)
 ![image](https://user-images.githubusercontent.com/20373954/185520510-2b8768d3-6f39-4a40-9e01-cd125f88a11e.png)
