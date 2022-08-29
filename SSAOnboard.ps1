@@ -8,7 +8,6 @@ Write-Host "This is a Script to enable or disable Defender for Serverless Applic
 
 # Prompt Customer to enter the subscription_id and set it to a context
 $selected_subscription_id = Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the Defender for Serverless Application for"
-Write-Host "Selected Subscription ID is: $selected_subscription_id"
 Set-AzContext -Subscription $selected_subscription_id
 
 $PolicyName = "DefenderForServerless"
@@ -23,7 +22,17 @@ if ($toggle_option -eq 1) {
     $ss_config_value = Read-Host -Prompt "`n Enter secure key provided"
 }
 
+Write-Host "`n Selected Subscription ID is: $selected_subscription_id"
+Write-Host "`n Entered Secure key is: $ss_config_value"
+
+$confirm_deploy = Read-Host -Prompt "`n Enter Yes to Confirm the Change, any other input will exit"
+if($confirm_deploy -ne "Yes" -and $confirm_deploy -ne "yes") {
+    Write-Host "The Script will Now Exit."
+    Exit
+}
+
 Write-Host "Please wait while deployment is complete..."
+
 # Get all functions within the subscription
 $function_app_list = Get-AzFunctionApp -SubscriptionId $selected_subscription_id
 
@@ -32,15 +41,21 @@ switch ($toggle_option) {
     # Remove Configuration Switch to Disable
     0 {
         For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
-            Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
+            try {
+                Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
+                Write-Host ("Defender Disabled for Function - "+$function_app_list[$Cntr].Name.ToString())
+            }
+            catch {
+                Write-Host ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
+            }
         };
-        Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID is: $selected_subscription_id"
         Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
         Remove-AzPolicyDefinition -Name $PolicyName -Force
 
         Write-Host "Cleaning up resources. This may take a while..."
         Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
         Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
+        Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully";
         break
     }
 
@@ -58,7 +73,13 @@ switch ($toggle_option) {
         $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_CONFIG", $ss_config_value)
 
         For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
-            Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
+            try {
+                Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
+                Write-Host ("Defender Enabled for Function - "+$function_app_list[$Cntr].Name.ToString())
+            }
+            catch {
+                Write-Host ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
+            }
         };
 
         # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
@@ -75,7 +96,7 @@ switch ($toggle_option) {
             }
         }
         Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
-        Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT for Subscription ID: $selected_subscription_id"; break 
+        Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully"; break 
     }
 
     # Defaults to break the switch, without any changes made
