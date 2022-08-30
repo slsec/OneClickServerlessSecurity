@@ -1,107 +1,135 @@
-#Exit Script on error
-$ErrorActionPreference = "Stop"
+$ErrorActionPreferenceBackup = $ErrorActionPreference
 $WarningPrefBackup = $WarningPreference
-$WarningPreference = 'SilentlyContinue'
+$OldAzContext = Get-AzContext
+$OldAzContextSubscriptionId = $OldAzContext[0].Subscription.Id
 
-# Describe to the User what that Script does
-Write-Host "This is a Script to enable or disable Defender for Serverless Application (Azure Functions) within a Subscription. `n Prior to running this script please contact Microsoft's Servelress Security team to initiate the onboarding process for a specific subscription and recieve the subscription's specific configuration key."
+try {
+    #Exit Script on error
+    $ErrorActionPreference = "Stop"
+    $WarningPreference = 'SilentlyContinue'
 
-# Prompt Customer to enter the subscription_id and set it to a context
-$selected_subscription_id = Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the Defender for Serverless Application for"
-Set-AzContext -Subscription $selected_subscription_id
+    # Describe to the User what that Script does
+    Write-Host "This is a Script to enable or disable Defender for Serverless Application (Azure Functions) within a Subscription. `n Prior to running this script please contact Microsoft's Servelress Security team to initiate the onboarding process for a specific subscription and recieve the subscription's specific configuration key."
 
-$PolicyName = "DefenderForServerless"
-$PolicyScope = "/subscriptions/$($selected_subscription_id)"
+    # Prompt Customer to enter the subscription_id and set it to a context (Remove extra whitespaces at start/end)
+    $selected_subscription_id = (Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the Defender for Serverless Application for" -MaskInput).Trim()
+    Set-AzContext -Subscription $selected_subscription_id
 
-# For each function from $function_app_list, 
-# set AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to 1 to enable the agent.
-# remove AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to disable the agent.
-$toggle_option = Read-Host -Prompt "`n Enter 0 to Disable, 1 to Enable, any other input will do nothing and exit.`n Note: enablement/disablement of the defender will result in function restart...."
+    $PolicyName = "DefenderForServerless"
+    $PolicyScope = "/subscriptions/$($selected_subscription_id)"
 
-if ($toggle_option -eq 1) {
-    $ss_config_value = Read-Host -Prompt "`n Enter secure key provided"
-}
+    # For each function from $function_app_list, 
+    # set AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to 1 to enable the agent.
+    # remove AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED to disable the agent.
+    # (Remove extra whitespaces at start/end)
+    $toggle_option = (Read-Host -Prompt "`n Enter 0 to Disable, 1 to Enable, any other input will do nothing and exit.`n Note: enablement/disablement of the defender will result in function restart....").Trim()
 
-Write-Host "`n Selected Subscription ID is: $selected_subscription_id"
-Write-Host "`n Entered Secure key is: $ss_config_value"
-
-$confirm_deploy = Read-Host -Prompt "`n Enter Yes to Confirm the Change, any other input will exit"
-if($confirm_deploy -ne "Yes" -and $confirm_deploy -ne "yes") {
-    Write-Host "The Script will Now Exit."
-    Exit
-}
-
-Write-Host "Please wait while deployment is complete..."
-
-# Get all functions within the subscription
-$function_app_list = Get-AzFunctionApp -SubscriptionId $selected_subscription_id
-
-switch ($toggle_option) {
-
-    # Remove Configuration Switch to Disable
-    0 {
-        For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
-            try {
-                Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
-                Write-Host ("Defender Disabled for Function - "+$function_app_list[$Cntr].Name.ToString())
-            }
-            catch {
-                Write-Host ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
-            }
-        };
-        Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
-        Remove-AzPolicyDefinition -Name $PolicyName -Force
-
-        Write-Host "Cleaning up resources. This may take a while..."
-        Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
-        Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
-        Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully";
-        break
+    if ($toggle_option -eq 1) {
+        # Subscription's specific configuration key (Remove extra whitespaces at start/end)
+        $ss_config_value = (Read-Host -Prompt "`n Enter subscription's specific configuration key." -MaskInput).Trim()
     }
 
-    # Update Configuration to Enable
-    1 { 
-        Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights' | Out-Null # Needed to create policies
-        $PolicyDescription = "Policy to deploy resources required to enable the Defender for Serverless product"
-        $PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription
-        # The policy assignment needs to be created early on so its identity has time to propagate 
-        $PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope $PolicyScope -PolicyDefinition $PolicyDefinition -Location westus2 -AssignIdentity
-        
-        $UpdateFunctionAppSetting = @{}
-        $UpdateFunctionAppSetting.Add("AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "1")
-        $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_OFFLOAD_TO_EH", "True")
-        $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_CONFIG", $ss_config_value)
+    Write-Host "`n Selected Subscription ID is: $selected_subscription_id"
+    Write-Host "`n Entered subscription's specific configuration key is: $ss_config_value"
+    
+    if([string]::IsNullOrWhiteSpace($ss_config_value)) {
+        Write-Host "The subscription specific configuration key cannot be empty.`n The Script will exit now, Please Run the script again to retry!"
+        Exit
+    }
 
-        For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
-            try {
-                Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
-                Write-Host ("Defender Enabled for Function - "+$function_app_list[$Cntr].Name.ToString())
-            }
-            catch {
-                Write-Host ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
-            }
-        };
+    $confirm_deploy = (Read-Host -Prompt "`n Enter Yes to Confirm the Change, any other input will exit").Trim()
+    if($confirm_deploy -ne "Yes" -and $confirm_deploy -ne "yes") {
+        Write-Host "The Script will Now Exit. Please Run the script again to retry!"
+        Exit
+    }
 
-        # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
-        $RoleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds 
-        if ($RoleDefinitionIds.Count -gt 0) {
-            $RoleDefinitionIds | ForEach-Object {
-                $RoleDefId = $_.Split("/") | Select-Object -Last 1
+    Write-Host "Please wait while deployment is complete..."
+
+    # Get all functions within the subscription
+    $function_app_list = Get-AzFunctionApp -SubscriptionId $selected_subscription_id
+
+    switch ($toggle_option) {
+
+        # Remove Configuration Switch to Disable
+        0 {
+            $PrcntComplete = 0
+            $TotalFunctions = $function_app_list.Count
+            For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
                 try {
-                    New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId
+                    Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
+                    $PrcntComplete = (($Cntr+1)*100/$TotalFunctions)
+                    Write-Progress -Id 2 -Activity "Disabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Defender Disabled for Function - "+$function_app_list[$Cntr].Name.ToString())
                 }
-                catch [Microsoft.Azure.Management.Authorization.Models.ErrorResponseException] {
-                    "Role Assingment $RoleDefId already exists. Continuing"
+                catch {
+                    Write-Progress -Id 2 -Activity "Disabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Error disabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
+                    Write-Host ("Error disabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red
+                }
+            };
+            Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
+            Remove-AzPolicyDefinition -Name $PolicyName -Force
+
+            Write-Host "Cleaning up resources. This may take a while..."
+            Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
+            Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
+            Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully";
+            break
+        }
+
+        # Update Configuration to Enable
+        1 { 
+            Register-AzResourceProvider -ProviderNamespace 'Microsoft.PolicyInsights' | Out-Null # Needed to create policies
+            $PolicyDescription = "Policy to deploy resources required to enable the Defender for Serverless product"
+            $PolicyDefinition = New-AzPolicyDefinition -Name $PolicyName -Policy Policy.json -Description $PolicyDescription
+            # The policy assignment needs to be created early on so its identity has time to propagate 
+            $PolicyAssignment = New-AzPolicyAssignment -Name $PolicyName -Description $PolicyDescription -Scope $PolicyScope -PolicyDefinition $PolicyDefinition -Location westus2 -AssignIdentity
+            
+            $UpdateFunctionAppSetting = @{}
+            $UpdateFunctionAppSetting.Add("AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "1")
+            $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_OFFLOAD_TO_EH", "True")
+            $UpdateFunctionAppSetting.Add("SERVERLESS_SECURITY_CONFIG", $ss_config_value)
+
+            $PrcntComplete = 0
+            $TotalFunctions = $function_app_list.Count
+            For ($Cntr = 0 ; $Cntr -lt $TotalFunctions; $Cntr++) {
+                try {
+                    Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
+                    $PrcntComplete = (($Cntr+1)*100/$TotalFunctions)
+                    Write-Progress -Id 2 -Activity "Enabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Defender Enabled for Function - "+$function_app_list[$Cntr].Name.ToString())
+                }
+                catch {
+                    Write-Progress -Id 2 -Activity "Enabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
+                    Write-Host ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red
+                }
+            };
+
+            # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
+            $RoleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds 
+            if ($RoleDefinitionIds.Count -gt 0) {
+                $RoleDefinitionIds | ForEach-Object {
+                    $RoleDefId = $_.Split("/") | Select-Object -Last 1
+                    try {
+                        New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId
+                    }
+                    catch [Microsoft.Azure.Management.Authorization.Models.ErrorResponseException] {
+                        "Role Assingment $RoleDefId already exists. Continuing"
+                    }
                 }
             }
+            Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
+            Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully"; break 
         }
-        Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
-        Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully"; break 
-    }
 
-    # Defaults to break the switch, without any changes made
-    default { break }
+        # Defaults to break the switch, without any changes made
+        default { break }
+    }
+}
+catch {
+    Write-Host "Error, Please try again!"
 }
 
-# Reset preference
-$WarningPreference = $WarningPrefBackup
+finally {
+    # Reset preferenceS and context
+    if($WarningPrefBackup) {$WarningPreference = $WarningPrefBackup}
+    if($ErrorActionPreferenceBackup) {$ErrorActionPreferenceBackup = $ErrorActionPreferenceBackup}
+    if($OldAzContextSubscriptionId) {Set-AzContext -Subscription $OldAzContextSubscriptionId}
+}
