@@ -13,7 +13,7 @@ try {
 
     # Prompt Customer to enter the subscription_id and set it to a context (Remove extra whitespaces at start/end)
     $selected_subscription_id = (Read-Host -Prompt "`n Enter the subscription_id you would like to enable/disable the Defender for Serverless Application for" -MaskInput).Trim()
-    Set-AzContext -Subscription $selected_subscription_id
+    Set-AzContext -Subscription $selected_subscription_id | Out-Null
 
     $PolicyName = "DefenderForServerless"
     $PolicyScope = "/subscriptions/$($selected_subscription_id)"
@@ -54,25 +54,58 @@ try {
         0 {
             $PrcntComplete = 0
             $TotalFunctions = $function_app_list.Count
-            For ($Cntr = 0 ; $Cntr -lt $($function_app_list.Count); $Cntr++) {
-                try {
-                    Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
-                    $PrcntComplete = (($Cntr+1)*100/$TotalFunctions)
-                    Write-Progress -Id 2 -Activity "Disabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Defender Disabled for Function - "+$function_app_list[$Cntr].Name.ToString())
+            
+            #Create Function Jobs in Background
+            $FunctionChangeJobs = New-Object System.Collections.ArrayList
+            For ($Cntr = 0 ; $Cntr -lt $TotalFunctions; $Cntr++) {
+                $FunctionChangeJobBlockOp = {
+                    param($function_app_list, $Cntr)
+                    try {
+                        Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
+                    }
+                    catch {
+                        Write-Host ("Error Disabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red;
+                    }
                 }
-                catch {
-                    Write-Progress -Id 2 -Activity "Disabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Error disabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
-                    Write-Host ("Error disabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red
+                #Add To a jobs list to track completion and clean up
+                $FunctionChangeJobs.Add((Start-ThreadJob -Scriptblock $FunctionChangeJobBlockOp -ThrottleLimit 5 -ArgumentList $function_app_list,$Cntr).Id) | Out-Null;
+            }
+
+            #Track Jobs Completion
+            $TotalFunctionChangeJobs = $FunctionChangeJobs.Count
+            $TotalFunctionsRemaining = $FunctionChangeJobs.Count
+            $CheckCompleted = "Completed"
+            while ($TotalFunctionsRemaining -gt 0) {
+                $TotalFunctionsRemaining = $FunctionChangeJobs.Count
+                For ($Cntr = 0 ; $Cntr -lt $TotalFunctionChangeJobs; $Cntr++) {
+                    $ThisJob = Get-Job $FunctionChangeJobs[$Cntr]
+                    if($ThisJob.State -eq $CheckCompleted)
+                        {
+                            $TotalFunctionsRemaining -=1
+                            if($ThisJob.HasMoreData){
+                                $ReceiveJobData = Receive-Job $FunctionChangeJobs[$Cntr]
+                                if($null -ne $ReceiveJobData) 
+                                    {Write-Host $ReceiveJobData}
+                            }
+                        }
                 }
-            };
+                $PrcntComplete = (($TotalFunctionChangeJobs-$TotalFunctionsRemaining)*100/$TotalFunctionChangeJobs)
+                Write-Progress -Id 2 -Activity "Disabling Defender for Functions" -Status "$($TotalFunctionChangeJobs-$TotalFunctionsRemaining)/$TotalFunctionChangeJobs Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Disabling Defender for $TotalFunctionsRemaining Functions Remaining")
+            }
+            # Clean Jobs
+            For ($Cntr = 0 ; $Cntr -lt $TotalFunctionChangeJobs; $Cntr++) {
+                Remove-Job $FunctionChangeJobs[$Cntr]
+            }
+            $FunctionChangeJobs.Clear()
+
             Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
             Remove-AzPolicyDefinition -Name $PolicyName -Force
 
             Write-Host "Cleaning up resources. This may take a while..."
             Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
             Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
-            Write-Host "Disabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully";
-            break
+            Write-Host "Disabled Defender for Serverless Security Successfully";
+            break;
         }
 
         # Update Configuration to Enable
@@ -90,18 +123,50 @@ try {
 
             $PrcntComplete = 0
             $TotalFunctions = $function_app_list.Count
+            
+            #Create Function Jobs in Background
+            $FunctionChangeJobs = New-Object System.Collections.ArrayList
             For ($Cntr = 0 ; $Cntr -lt $TotalFunctions; $Cntr++) {
-                try {
-                    Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null
-                    $PrcntComplete = (($Cntr+1)*100/$TotalFunctions)
-                    Write-Progress -Id 2 -Activity "Enabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Defender Enabled for Function - "+$function_app_list[$Cntr].Name.ToString())
+                $FunctionChangeJobBlockOp = {
+                    param($function_app_list,$UpdateFunctionAppSetting,$Cntr)
+                    try {
+                        Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null;
+                        }
+                    catch {
+                        Write-Host ("Error Enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red;
+                    }
                 }
-                catch {
-                    Write-Progress -Id 2 -Activity "Enabling Defender for Functions" -Status "$($Cntr+1)/$TotalFunctions Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString())
-                    Write-Host ("Error enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red
-                }
-            };
+                #Add To a jobs list to track completion and clean up
+                $FunctionChangeJobs.Add((Start-ThreadJob -Scriptblock $FunctionChangeJobBlockOp -ThrottleLimit 5 -ArgumentList $function_app_list,$UpdateFunctionAppSetting,$Cntr).Id) | Out-Null;
+            }
 
+            #Track Jobs Completion
+            $TotalFunctionChangeJobs = $FunctionChangeJobs.Count
+            $TotalFunctionsRemaining = $FunctionChangeJobs.Count
+            $CheckCompleted = "Completed"
+            while ($TotalFunctionsRemaining -gt 0) {
+                $TotalFunctionsRemaining = $FunctionChangeJobs.Count
+                For ($Cntr = 0 ; $Cntr -lt $TotalFunctionChangeJobs; $Cntr++) {
+                    $ThisJob = Get-Job $FunctionChangeJobs[$Cntr]
+                    if($ThisJob.State -eq $CheckCompleted)
+                        {
+                            $TotalFunctionsRemaining -=1
+                            if($ThisJob.HasMoreData){
+                                $ReceiveJobData = Receive-Job $FunctionChangeJobs[$Cntr]
+                                if($null -ne $ReceiveJobData) 
+                                    {Write-Host $ReceiveJobData}
+                            }
+                        }
+                }
+                $PrcntComplete = (($TotalFunctionChangeJobs-$TotalFunctionsRemaining)*100/$TotalFunctionChangeJobs)
+                Write-Progress -Id 2 -Activity "Enabling Defender for Functions" -Status "$($TotalFunctionChangeJobs-$TotalFunctionsRemaining)/$TotalFunctionChangeJobs Functions completed" -PercentComplete $PrcntComplete -CurrentOperation ("Enabling Defender for $TotalFunctionsRemaining Functions Remaining")
+            }
+            # Clean Jobs
+            For ($Cntr = 0 ; $Cntr -lt $TotalFunctionChangeJobs; $Cntr++) {
+                Remove-Job $FunctionChangeJobs[$Cntr]
+            }
+            $FunctionChangeJobs.Clear()
+            
             # https://docs.microsoft.com/en-us/azure/governance/policy/how-to/remediate-resources?tabs=azure-powershell#grant-permissions-to-the-managed-identity-through-defined-roles
             $RoleDefinitionIds = $PolicyDefinition.Properties.policyRule.then.details.roleDefinitionIds 
             if ($RoleDefinitionIds.Count -gt 0) {
@@ -116,7 +181,8 @@ try {
                 }
             }
             Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
-            Write-Host "Enabled AZURE_FUNCTIONS_SECURITY_AGENT Successfully"; break 
+            Write-Host "Enabled Defender for Serverless Security Successfully"; 
+            break;
         }
 
         # Defaults to break the switch, without any changes made
