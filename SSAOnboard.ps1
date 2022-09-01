@@ -27,20 +27,21 @@ try {
     if ($toggle_option -eq 1) {
         # Subscription's specific configuration key (Remove extra whitespaces at start/end)
         $ss_config_value = (Read-Host -Prompt "`n Enter subscription's specific configuration key." -MaskInput).Trim()
+        
+        if([string]::IsNullOrWhiteSpace($ss_config_value)) {
+            Write-Host "The subscription specific configuration key cannot be empty.`n The Script will exit now, Please Run the script again to retry!"
+            return;
+        }
+
+        Write-Host "`n Entered subscription's specific configuration key is: $ss_config_value"
     }
 
     Write-Host "`n Selected Subscription ID is: $selected_subscription_id"
-    Write-Host "`n Entered subscription's specific configuration key is: $ss_config_value"
     
-    if([string]::IsNullOrWhiteSpace($ss_config_value)) {
-        Write-Host "The subscription specific configuration key cannot be empty.`n The Script will exit now, Please Run the script again to retry!"
-        Exit
-    }
-
     $confirm_deploy = (Read-Host -Prompt "`n Enter Yes to Confirm the Change, any other input will exit").Trim()
     if($confirm_deploy -ne "Yes" -and $confirm_deploy -ne "yes") {
         Write-Host "The Script will Now Exit. Please Run the script again to retry!"
-        Exit
+        return;
     }
 
     Write-Host "Please wait while deployment is complete..."
@@ -59,16 +60,16 @@ try {
             $FunctionChangeJobs = New-Object System.Collections.ArrayList
             For ($Cntr = 0 ; $Cntr -lt $TotalFunctions; $Cntr++) {
                 $FunctionChangeJobBlockOp = {
-                    param($function_app_list, $Cntr)
+                    param($FunctionAppName, $FunctionAppResourceGroupName, $Cntr)
                     try {
-                        Remove-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
+                        Remove-AzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $FunctionAppResourceGroupName -AppSettingName "AZURE_FUNCTIONS_SECURITY_AGENT_ENABLED", "SERVERLESS_SECURITY_OFFLOAD_TO_EH", "SERVERLESS_SECURITY_CONFIG" | Out-Null
                     }
                     catch {
-                        Write-Host ("Error Disabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red;
+                        Write-Host ("Error Disabling Defender for Function - "+$FunctionAppName) -ForegroundColor Red;
                     }
                 }
                 #Add To a jobs list to track completion and clean up
-                $FunctionChangeJobs.Add((Start-ThreadJob -Scriptblock $FunctionChangeJobBlockOp -ThrottleLimit 5 -ArgumentList $function_app_list,$Cntr).Id) | Out-Null;
+                $FunctionChangeJobs.Add((Start-ThreadJob -Scriptblock $FunctionChangeJobBlockOp -ThrottleLimit 5 -ArgumentList ($function_app_list[$Cntr].Name,$function_app_list[$Cntr].ResourceGroupName,$Cntr)).Id) | Out-Null;
             }
 
             #Track Jobs Completion
@@ -102,9 +103,18 @@ try {
             Remove-AzPolicyDefinition -Name $PolicyName -Force | Out-Null
 
             Write-Host "Cleaning up resources. This may take a while..."
-            Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force | Out-Null
-            Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force | Out-Null
-            Write-Host "Disabled Defender for Serverless Security Successfully";
+            ######## Check this with Seth
+            
+            #$CheckAzResourceLock = Get-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceName 'mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities'
+            #if($null -ne $CheckAzResourceLock) {
+            #    Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force | Out-Null
+            #}
+            #$CheckAzResourceGroup = Get-AzResourceGroup -Name 'mdc-slsec-rg'
+            #if($null -ne $CheckAzResourceGroup) {
+            #    Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force | Out-Null
+            #}
+
+            Write-Host "Disabled Defender for Serverless Security Successfully" -ForegroundColor Green;
             break;
         }
 
@@ -128,16 +138,16 @@ try {
             $FunctionChangeJobs = New-Object System.Collections.ArrayList
             For ($Cntr = 0 ; $Cntr -lt $TotalFunctions; $Cntr++) {
                 $FunctionChangeJobBlockOp = {
-                    param($function_app_list,$UpdateFunctionAppSetting,$Cntr)
+                    param($FunctionAppName, $FunctionAppResourceGroupName ,$UpdateFunctionAppSetting,$Cntr)
                     try {
-                        Update-AzFunctionAppSetting -Name $function_app_list[$Cntr].Name -ResourceGroupName $function_app_list[$Cntr].ResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null;
+                        Update-AzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $FunctionAppResourceGroupName -AppSetting $UpdateFunctionAppSetting | Out-Null;
                         }
                     catch {
-                        Write-Host ("Error Enabling Defender for Function - "+$function_app_list[$Cntr].Name.ToString()) -ForegroundColor Red;
+                        Write-Host ("Error Enabling Defender for Function - "+$FunctionAppName) -ForegroundColor Red;
                     }
                 }
                 #Add To a jobs list to track completion and clean up
-                $FunctionChangeJobs.Add((Start-ThreadJob -Scriptblock $FunctionChangeJobBlockOp -ThrottleLimit 5 -ArgumentList $function_app_list,$UpdateFunctionAppSetting,$Cntr).Id) | Out-Null;
+                $FunctionChangeJobs.Add((Start-ThreadJob -Scriptblock $FunctionChangeJobBlockOp -ThrottleLimit 5 -ArgumentList ($function_app_list[$Cntr].Name,$function_app_list[$Cntr].ResourceGroupName,$UpdateFunctionAppSetting,$Cntr)).Id) | Out-Null;
             }
 
             #Track Jobs Completion
@@ -173,15 +183,21 @@ try {
                 $RoleDefinitionIds | ForEach-Object {
                     $RoleDefId = $_.Split("/") | Select-Object -Last 1
                     try {
-                        New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId | Out-Null
+                        $CheckAzRoleAssignment = Get-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId 
+                        if($null -eq $CheckAzRoleAssignment) {
+                            New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId | Out-Null
+                        }
                     }
                     catch [Microsoft.Azure.Management.Authorization.Models.ErrorResponseException] {
                         Write-Host "Role Assingment $RoleDefId already exists. Continuing"
                     }
                 }
             }
-            Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance | Out-Null
-            Write-Host "Enabled Defender for Serverless Security Successfully"; 
+            $CheckAzPolicyRemediation = Get-AzPolicyRemediation -Name $PolicyName
+            if($null -eq $CheckAzPolicyRemediation) {
+                Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance | Out-Null
+            }
+            Write-Host "Enabled Defender for Serverless Security Successfully" -ForegroundColor Green; 
             break;
         }
 
