@@ -98,12 +98,12 @@ try {
             }
             $FunctionChangeJobs.Clear()
 
-            Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope
-            Remove-AzPolicyDefinition -Name $PolicyName -Force
+            Remove-AzPolicyAssignment -Name $PolicyName -Scope $PolicyScope | Out-Null
+            Remove-AzPolicyDefinition -Name $PolicyName -Force | Out-Null
 
             Write-Host "Cleaning up resources. This may take a while..."
-            Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force
-            Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force
+            Remove-AzResourceLock -LockName 'CanNotDeleteLock-mdc-slsec-identity' -ResourceGroupName 'mdc-slsec-rg' -ResourceName 'mdc-slsec-identity' -ResourceType 'Microsoft.ManagedIdentity/userAssignedIdentities' -Force | Out-Null
+            Remove-AzResourceGroup -Name 'mdc-slsec-rg' -Force | Out-Null
             Write-Host "Disabled Defender for Serverless Security Successfully";
             break;
         }
@@ -173,14 +173,14 @@ try {
                 $RoleDefinitionIds | ForEach-Object {
                     $RoleDefId = $_.Split("/") | Select-Object -Last 1
                     try {
-                        New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId
+                        New-AzRoleAssignment -Scope $PolicyScope -ObjectId $PolicyAssignment.Identity.PrincipalId -RoleDefinitionId $RoleDefId | Out-Null
                     }
                     catch [Microsoft.Azure.Management.Authorization.Models.ErrorResponseException] {
-                        "Role Assingment $RoleDefId already exists. Continuing"
+                        Write-Host "Role Assingment $RoleDefId already exists. Continuing"
                     }
                 }
             }
-            Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance
+            Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignment.ResourceId -Name $PolicyName -ParallelDeploymentCount 1 -ResourceDiscoveryMode ReEvaluateCompliance | Out-Null
             Write-Host "Enabled Defender for Serverless Security Successfully"; 
             break;
         }
@@ -197,5 +197,5 @@ finally {
     # Reset preferenceS and context
     if($WarningPrefBackup) {$WarningPreference = $WarningPrefBackup}
     if($ErrorActionPreferenceBackup) {$ErrorActionPreferenceBackup = $ErrorActionPreferenceBackup}
-    if($OldAzContextSubscriptionId) {Set-AzContext -Subscription $OldAzContextSubscriptionId}
+    if($OldAzContextSubscriptionId) {Set-AzContext -Subscription $OldAzContextSubscriptionId | Out-Null}
 }
